@@ -2,6 +2,7 @@ package com.abdulbasit.cloudmusicplayer
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,14 +30,15 @@ import java.util.Collections
 class MainActivity : AppCompatActivity() {
 
     private val webClientId = "939513048631-dvs53ktq14qmen9uoilavb4nnrlittle.apps.googleusercontent.com"
+    private val TAG = "CLOUD_MUSIC_DEBUG"
 
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var rvSongs: RecyclerView
     private lateinit var btnGoogleLogin: Button
 
-    // 🎵 ExoPlayer Variable Declaration
     private var exoPlayer: ExoPlayer? = null
 
+    // Backup list agar internet bilkul hi na ho
     private var dummySongsList = listOf(
         Song("1", "Dil De Diya Hai.mp3", ""),
         Song("2", "Tum Hi Ho.mp3", ""),
@@ -51,8 +53,8 @@ class MainActivity : AppCompatActivity() {
         rvSongs = findViewById(R.id.rvSongs)
         rvSongs.layoutManager = LinearLayoutManager(this)
 
-        // 🎵 ExoPlayer Initialization
-        exoPlayer = ExoPlayer.Builder(this).build()
+        // Player initialization
+        initializePlayer()
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -62,16 +64,34 @@ class MainActivity : AppCompatActivity() {
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-        val account = GoogleSignIn.getLastSignedInAccount(this)
-        if (account != null) {
-            btnGoogleLogin.text = "Logged In as ${account.displayName}"
-            fetchRealDriveSongs(account)
-        }
+        // 🛠️ BUG FIX 1: Silent Sign-In use karenge taaki Token automatic refresh ho jaye
+        checkExistingUserSession()
 
         btnGoogleLogin.setOnClickListener {
             val signInIntent = googleSignInClient.signInIntent
             loginLauncher.launch(signInIntent)
         }
+    }
+
+    private fun initializePlayer() {
+        if (exoPlayer == null) {
+            exoPlayer = ExoPlayer.Builder(this).build()
+        }
+    }
+
+    private fun checkExistingUserSession() {
+        // Silent sign-in se hamesha valid backend session check hota hai
+        googleSignInClient.silentSignIn()
+            .addOnSuccessListener { account ->
+                Log.d(TAG, "Silent Sign-In Successful for: ${account.displayName}")
+                btnGoogleLogin.text = "Logged In as ${account.displayName}"
+                fetchRealDriveSongs(account)
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Silent Sign-In Failed, user needs to click login button: ${e.message}")
+                // Agar user session expired hai, toh UI par safe backup dikha do jab tak login na ho
+                loadSongsInAdapter(dummySongsList)
+            }
     }
 
     private val loginLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -86,7 +106,7 @@ class MainActivity : AppCompatActivity() {
                     fetchRealDriveSongs(account)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("GOOGLE_SIGNIN", "Error Code: ${e.message}", e)
+                Log.e(TAG, "Login Failed: ${e.message}", e)
                 Toast.makeText(this, "Login Failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         } else {
@@ -113,15 +133,14 @@ class MainActivity : AppCompatActivity() {
                 val realSongs = driveHelper.queryMp3Files()
 
                 if (realSongs.isEmpty()) {
-                    Toast.makeText(this@MainActivity, "No MP3 files found! Loading Backup List.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivity, "No MP3 files found in Drive!", Toast.LENGTH_LONG).show()
                     loadSongsInAdapter(dummySongsList)
                 } else {
-                    Toast.makeText(this@MainActivity, "Found ${realSongs.size} songs!", Toast.LENGTH_SHORT).show()
                     loadSongsInAdapter(realSongs)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(this@MainActivity, "Failed to fetch songs: ${e.message}", Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Drive Fetch Exception: ${e.message}", e)
+                Toast.makeText(this@MainActivity, "Session refresh required. Please re-login if songs don't load.", Toast.LENGTH_LONG).show()
                 loadSongsInAdapter(dummySongsList)
             }
         }
@@ -129,40 +148,46 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadSongsInAdapter(songs: List<Song>) {
         val adapter = SongAdapter(songs) { song ->
-            // 🎵 Real Song Playback Logic Trigger!
             playSong(song)
         }
         rvSongs.adapter = adapter
     }
 
-    // 🎵 Function to Stream/Play Music from Google Drive Link
     private fun playSong(song: Song) {
         if (song.url.isEmpty()) {
-            Toast.makeText(this, "Dummy song has no stream link!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No stream link available for backup items", Toast.LENGTH_SHORT).show()
             return
         }
 
         Toast.makeText(this, "Playing: ${song.title}", Toast.LENGTH_SHORT).show()
 
         try {
-            exoPlayer?.apply {
-                stop() // Purana chal raha gaana stop karo
-                clearMediaItems() // List clear karo
+            // 🛠️ BUG FIX 2: Player state reset ensure karein taaki multiple audios merge na hon
+            initializePlayer()
 
-                // Drive ka URL se MediaItem banayein
+            exoPlayer?.apply {
+                stop()
+                clearMediaItems()
+
                 val mediaItem = MediaItem.fromUri(song.url)
                 setMediaItem(mediaItem)
 
-                prepare() // Stream buffer karein
-                play() // Shuru karo!
+                prepare()
+                play()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "ExoPlayer Error: ${e.message}", e)
             Toast.makeText(this, "Playback Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // 🚨 Memory Leak se bachne ke liye Activity destroy hote waqt player ko release karein
+    // App background mein jane par resource optimize rahein
+    override fun onStop() {
+        super.onStop()
+        // Agar aap chahte ho app minimize hone par music chalta rahe, toh ise comment rakhna.
+        // Agar chahte ho band ho jaye, toh yahan exoPlayer?.stop() daal sakte hain.
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         exoPlayer?.release()
