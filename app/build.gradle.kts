@@ -42,4 +42,18 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    // Google Sign-In SDK
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    // Google Drive API Libraries (Bina version conflict ke)
+    implementation("com.google.api-client:google-api-client-android:1.32.1") {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation("com.google.oauth-client:google-oauth-client-jetty:1.32.1")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20211107-1.32.1")
+
+    // Media3 ExoPlayer (Music Playback ke liye)
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+    implementation("androidx.media3:media3-datasource:1.3.1")
 }
