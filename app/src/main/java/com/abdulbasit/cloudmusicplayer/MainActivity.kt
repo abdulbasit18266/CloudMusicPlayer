@@ -6,6 +6,8 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.abdulbasit.cloudmusicplayer.adapter.SongAdapter
@@ -22,19 +24,19 @@ import com.google.api.services.drive.DriveScopes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Collections
 
 class MainActivity : AppCompatActivity() {
 
-    // Web Client ID perfectly configured
     private val webClientId = "939513048631-dvs53ktq14qmen9uoilavb4nnrlittle.apps.googleusercontent.com"
 
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var rvSongs: RecyclerView
     private lateinit var btnGoogleLogin: Button
 
-    // Backup Dummy list - updated to 3 parameters (id, title, url)
+    // 🎵 ExoPlayer Variable Declaration
+    private var exoPlayer: ExoPlayer? = null
+
     private var dummySongsList = listOf(
         Song("1", "Dil De Diya Hai.mp3", ""),
         Song("2", "Tum Hi Ho.mp3", ""),
@@ -47,11 +49,11 @@ class MainActivity : AppCompatActivity() {
 
         btnGoogleLogin = findViewById(R.id.btnGoogleLogin)
         rvSongs = findViewById(R.id.rvSongs)
-
-        // RecyclerView Layout Setup
         rvSongs.layoutManager = LinearLayoutManager(this)
 
-        // Google Sign-In options setup (Drive Scope configured)
+        // 🎵 ExoPlayer Initialization
+        exoPlayer = ExoPlayer.Builder(this).build()
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestIdToken(webClientId)
@@ -60,21 +62,18 @@ class MainActivity : AppCompatActivity() {
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-        // Automatically fetch if already logged in
         val account = GoogleSignIn.getLastSignedInAccount(this)
         if (account != null) {
             btnGoogleLogin.text = "Logged In as ${account.displayName}"
             fetchRealDriveSongs(account)
         }
 
-        // Login Button Trigger
         btnGoogleLogin.setOnClickListener {
             val signInIntent = googleSignInClient.signInIntent
             loginLauncher.launch(signInIntent)
         }
     }
 
-    // Login Result Callback Handles Real Data Fetching
     private val loginLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
@@ -95,7 +94,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Real-time Drive MP3 Fetcher Function
     private fun fetchRealDriveSongs(account: GoogleSignInAccount) {
         val credential = GoogleAccountCredential.usingOAuth2(
             this, Collections.singleton(DriveScopes.DRIVE_READONLY)
@@ -112,7 +110,6 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 Toast.makeText(this@MainActivity, "Fetching MP3 files from Drive...", Toast.LENGTH_SHORT).show()
-
                 val realSongs = driveHelper.queryMp3Files()
 
                 if (realSongs.isEmpty()) {
@@ -125,17 +122,50 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(this@MainActivity, "Failed to fetch songs: ${e.message}", Toast.LENGTH_LONG).show()
-                loadSongsInAdapter(dummySongsList) // Fallback on Error
+                loadSongsInAdapter(dummySongsList)
             }
         }
     }
 
-    // Cleaned up Adapter binding logic
     private fun loadSongsInAdapter(songs: List<Song>) {
         val adapter = SongAdapter(songs) { song ->
-            // Note: Pehle song.name tha, ab hamari class mein model parameters ke mutabik song.title chalega
-            Toast.makeText(this, "Playing: ${song.title}", Toast.LENGTH_SHORT).show()
+            // 🎵 Real Song Playback Logic Trigger!
+            playSong(song)
         }
         rvSongs.adapter = adapter
+    }
+
+    // 🎵 Function to Stream/Play Music from Google Drive Link
+    private fun playSong(song: Song) {
+        if (song.url.isEmpty()) {
+            Toast.makeText(this, "Dummy song has no stream link!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Toast.makeText(this, "Playing: ${song.title}", Toast.LENGTH_SHORT).show()
+
+        try {
+            exoPlayer?.apply {
+                stop() // Purana chal raha gaana stop karo
+                clearMediaItems() // List clear karo
+
+                // Drive ka URL se MediaItem banayein
+                val mediaItem = MediaItem.fromUri(song.url)
+                setMediaItem(mediaItem)
+
+                prepare() // Stream buffer karein
+                play() // Shuru karo!
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Playback Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 🚨 Memory Leak se bachne ke liye Activity destroy hote waqt player ko release karein
+    override fun onDestroy() {
+        super.onDestroy()
+        exoPlayer?.release()
+        exoPlayer = null
     }
 }
