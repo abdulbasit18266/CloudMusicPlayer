@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="bg_gradient_start">#0D1117</color>
+    <color name="bg_gradient_end">#161B22</color>
+
+    <color name="glass_card_bg">#3321262D</color>
+    <color name="glass_stroke">#26FFFFFF</color>
+
+    <color name="text_premium_cream">#E3E7F0</color>
+    <color name="text_muted_grey">#8B949E</color>
+
+    <color name="solar_accent">#E5C07B</color>
 </resources>
