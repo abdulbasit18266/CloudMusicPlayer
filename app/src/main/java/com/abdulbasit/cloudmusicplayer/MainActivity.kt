@@ -19,7 +19,7 @@ import com.google.api.services.drive.DriveScopes
 class MainActivity : AppCompatActivity() {
 
     // 🔴 APNI NOTEPAD WALI WEB CLIENT ID YAHA PASTE KARO
-    private val webClientId = "939513048631-l66jk2c5b09962361fcm2mvpimsa40qh.apps.googleusercontent.com"
+    private val webClientId = "939513048631-dvs53ktq14qmen9uoilavb4nnrlittle.apps.googleusercontent.com"
 
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var rvSongs: RecyclerView

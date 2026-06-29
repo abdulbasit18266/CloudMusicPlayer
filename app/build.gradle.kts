@@ -4,10 +4,10 @@ plugins {
 
 android {
     namespace = "com.abdulbasit.cloudmusicplayer"
-    compileSdk = 36 // Isko simple 34 kar diya jo sabse stable hai
+    compileSdk = 36 // Aapke system ka stable version fixed
 
     signingConfigs {
-        // create ki jagah getByName use kiya hai taaki duplicate error na aaye
+        // Custom debug key configured properly to avoid duplicate project error
         getByName("debug") {
             storeFile = file("custom_debug.keystore")
             storePassword = "android"
@@ -19,7 +19,7 @@ android {
     defaultConfig {
         applicationId = "com.abdulbasit.cloudmusicplayer"
         minSdk = 24
-        targetSdk = 36 // Isko bhi 34 kiya compileSdk se match karne ke liye
+        targetSdk = 36 // compileSdk se perfectly matched
         versionCode = 1
         versionName = "1.0"
 
@@ -43,13 +43,25 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // Fixed: Duplicate files from Apache/Google Drive libraries excluded
+    packaging {
+        resources {
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/NOTICE"
+        }
+    }
 }
 
 dependencies {
+    // Fixed: Static stable versions added to prevent API 37 crash loop
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
+    // Default UI Components
     implementation(libs.androidx.activity.ktx)
-    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.core.ktx)
     implementation(libs.material)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -65,7 +77,7 @@ dependencies {
     implementation("com.google.oauth-client:google-oauth-client-jetty:1.32.1")
     implementation("com.google.apis:google-api-services-drive:v3-rev20211107-1.32.1")
 
-    // Media3 ExoPlayer
+    // Media3 ExoPlayer (Music Playback Engines)
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.media3:media3-datasource:1.3.1")
