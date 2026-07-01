@@ -3,7 +3,10 @@ package com.abdulbasit.cloudmusicplayer
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.ImageView
+import androidx.appcompat.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -34,6 +37,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rvSongs: RecyclerView
     private lateinit var btnGoogleLogin: Button
 
+    // Phase 10: Profile Circle View Object
+    private lateinit var btnProfileMenuTrigger: android.widget.ImageView
+    private var currentUserEmail: String = "No Email Found"
+
     private var dummySongsList = listOf(
         Song("1", "Dil De Diya Hai.mp3", ""),
         Song("2", "Tum Hi Ho.mp3", ""),
@@ -44,9 +51,13 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Initializing Views safely
         btnGoogleLogin = findViewById(R.id.btnGoogleLogin)
         rvSongs = findViewById(R.id.rvSongs)
         rvSongs.layoutManager = LinearLayoutManager(this)
+
+        // Phase 10: Mapping ONLY the active profile trigger icon
+        btnProfileMenuTrigger = findViewById(R.id.btnProfileMenuTrigger)
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -61,6 +72,40 @@ class MainActivity : AppCompatActivity() {
             val signInIntent = googleSignInClient.signInIntent
             loginLauncher.launch(signInIntent)
         }
+
+        // Profile Icon click karne par Premium Dropdown dikhana
+        btnProfileMenuTrigger.setOnClickListener { view ->
+            showProfilePopupMenu(view)
+        }
+    }
+    // Phase 10: Dynamic Drop-down Generator
+    private fun showProfilePopupMenu(anchorView: View) {
+        val popup = PopupMenu(this, anchorView)
+
+        // Menu item programmatically inject kar rahe hain (1: Email Address, 2: Sign Out Option)
+        popup.menu.add(0, 1, 0, currentUserEmail).isEnabled = false // Email non-clickable rahegi (Just label)
+        popup.menu.add(0, 2, 1, "Sign Out")
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                2 -> { // Sign Out Action
+                    googleSignInClient.signOut().addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            Toast.makeText(this, "Logged Out Successfully", Toast.LENGTH_SHORT).show()
+                            // Reset State
+                            btnProfileMenuTrigger.visibility = View.GONE
+                            btnGoogleLogin.visibility = View.VISIBLE
+                            loadSongsInAdapter(dummySongsList)
+                        } else {
+                            Toast.makeText(this, "Sign Out Failed!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
     }
 
     private fun playSong(song: Song) {
@@ -69,7 +114,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Song details intent ke zariye naye PlayerActivity page par redirect kar rahe hain
         val intent = Intent(this, PlayerActivity::class.java).apply {
             putExtra("SONG_TITLE", song.title)
             putExtra("SONG_URL", song.url)
@@ -80,10 +124,12 @@ class MainActivity : AppCompatActivity() {
     private fun checkExistingUserSession() {
         googleSignInClient.silentSignIn()
             .addOnSuccessListener { account ->
-                btnGoogleLogin.text = "Logged In as ${account.displayName}"
+                updateUiForLoggedInUser(account)
                 fetchRealDriveSongs(account)
             }
             .addOnFailureListener { e ->
+                btnProfileMenuTrigger.visibility = View.GONE
+                btnGoogleLogin.visibility = View.VISIBLE
                 loadSongsInAdapter(dummySongsList)
             }
     }
@@ -93,12 +139,20 @@ class MainActivity : AppCompatActivity() {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(Exception::class.java)
-                btnGoogleLogin.text = "Logged In as ${account?.displayName}"
-                if (account != null) fetchRealDriveSongs(account)
+                if (account != null) {
+                    updateUiForLoggedInUser(account)
+                    fetchRealDriveSongs(account)
+                }
             } catch (e: Exception) {
                 Toast.makeText(this, "Login Failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun updateUiForLoggedInUser(account: GoogleSignInAccount) {
+        btnGoogleLogin.visibility = View.GONE
+        btnProfileMenuTrigger.visibility = View.VISIBLE
+        currentUserEmail = account.email ?: "No Email Linked"
     }
 
     private fun fetchRealDriveSongs(account: GoogleSignInAccount) {
