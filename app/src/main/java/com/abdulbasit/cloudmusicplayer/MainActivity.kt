@@ -18,6 +18,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -38,8 +39,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnGoogleLogin: Button
 
     // Phase 10: Profile Circle View Object
-    private lateinit var btnProfileMenuTrigger: android.widget.ImageView
+    private lateinit var btnProfileMenuTrigger: ImageView
     private var currentUserEmail: String = "No Email Found"
+
+    // Phase 12: Floating Refresh Button View
+    private lateinit var btnRefresh: FloatingActionButton
+    private var isRefreshing: Boolean = false
 
     private var dummySongsList = listOf(
         Song("1", "Dil De Diya Hai.mp3", ""),
@@ -62,6 +67,9 @@ class MainActivity : AppCompatActivity() {
         // Phase 10: Mapping ONLY the active profile trigger icon
         btnProfileMenuTrigger = findViewById(R.id.btnProfileMenuTrigger)
 
+        // Phase 12: Binding Refresh Button
+        btnRefresh = findViewById(R.id.btnRefresh)
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestIdToken(webClientId)
@@ -80,7 +88,13 @@ class MainActivity : AppCompatActivity() {
         btnProfileMenuTrigger.setOnClickListener { view ->
             showProfilePopupMenu(view)
         }
+
+        // Phase 12: Refresh Button Click Listener
+        btnRefresh.setOnClickListener {
+            handleRefreshAction()
+        }
     }
+
     // Phase 10: Dynamic Drop-down Generator
     private fun showProfilePopupMenu(anchorView: View) {
         val popup = PopupMenu(this, anchorView)
@@ -144,7 +158,7 @@ class MainActivity : AppCompatActivity() {
         googleSignInClient.silentSignIn()
             .addOnSuccessListener { account ->
                 updateUiForLoggedInUser(account)
-                fetchRealDriveSongs(account)
+                fetchRealDriveSongs(account, isRefreshTrigger = false)
             }
             .addOnFailureListener { e ->
                 btnProfileMenuTrigger.visibility = View.GONE
@@ -160,7 +174,7 @@ class MainActivity : AppCompatActivity() {
                 val account = task.getResult(Exception::class.java)
                 if (account != null) {
                     updateUiForLoggedInUser(account)
-                    fetchRealDriveSongs(account)
+                    fetchRealDriveSongs(account, isRefreshTrigger = false)
                 }
             } catch (e: Exception) {
                 Toast.makeText(this, "Login Failed: ${e.message}", Toast.LENGTH_LONG).show()
@@ -174,7 +188,25 @@ class MainActivity : AppCompatActivity() {
         currentUserEmail = account.email ?: "No Email Linked"
     }
 
-    private fun fetchRealDriveSongs(account: GoogleSignInAccount) {
+    // Phase 12: Silent Refresh Mechanism Trigger
+    private fun handleRefreshAction() {
+        val account = GoogleSignIn.getLastSignedInAccount(this)
+        if (account == null) {
+            Toast.makeText(this, "Please login first to refresh!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (isRefreshing) {
+            Toast.makeText(this, "Refreshing in progress...", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        isRefreshing = true
+        fetchRealDriveSongs(account, isRefreshTrigger = true)
+    }
+
+    // Phase 12: Added boolean flag to isolate regular launch vs dynamic refresh triggers
+    private fun fetchRealDriveSongs(account: GoogleSignInAccount, isRefreshTrigger: Boolean) {
         val credential = GoogleAccountCredential.usingOAuth2(
             this, Collections.singleton(DriveScopes.DRIVE_READONLY)
         ).setSelectedAccount(account.account)
@@ -189,12 +221,29 @@ class MainActivity : AppCompatActivity() {
             try {
                 val realSongs = driveHelper.queryMp3Files()
                 if (realSongs.isEmpty()) {
+                    if (isRefreshTrigger) {
+                        Toast.makeText(this@MainActivity, "Up to date", Toast.LENGTH_SHORT).show()
+                    }
                     loadSongsInAdapter(dummySongsList)
                 } else {
+                    // Phase 12: Advanced list comparison checking
+                    if (isRefreshTrigger) {
+                        if (realSongs.size > currentSongsList.size) {
+                            Toast.makeText(this@MainActivity, "New file fetched", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this@MainActivity, "Up to date", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     loadSongsInAdapter(realSongs)
                 }
             } catch (e: Exception) {
+                if (isRefreshTrigger) {
+                    Toast.makeText(this@MainActivity, "Refresh failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
                 loadSongsInAdapter(dummySongsList)
+            } finally {
+                // Reset flag after compilation
+                isRefreshing = false
             }
         }
     }
