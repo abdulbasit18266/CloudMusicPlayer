@@ -7,7 +7,6 @@
     android:background="@drawable/bg_main_gradient"
     android:padding="20dp">
 
-    <!-- Top Custom Header -->
     <RelativeLayout
         android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
@@ -39,7 +38,6 @@
             android:layout_centerInParent="true"/>
     </RelativeLayout>
 
-    <!-- Center Premium Blurred Album Card Cover -->
     <LinearLayout
         android:id="@+id/layoutAlbumArt"
         android:layout_width="match_parent"
@@ -60,7 +58,6 @@
             android:contentDescription="Music Cover Icon"/>
     </LinearLayout>
 
-    <!-- Song Title Info -->
     <TextView
         android:id="@+id/tvPlayerSongTitle"
         android:layout_width="match_parent"
@@ -76,7 +73,6 @@
         android:ellipsize="end"
         android:maxLines="1"/>
 
-    <!-- Bottom Controls Subtle Glass Layout (Padding Adjusted to avoid cutting) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -86,7 +82,6 @@
         android:paddingVertical="16dp"
         android:paddingHorizontal="20dp">
 
-        <!-- Custom Seekbar -->
         <SeekBar
             android:id="@+id/playerSeekBar"
             android:layout_width="match_parent"
@@ -97,7 +92,6 @@
             android:progressTint="@color/solar_accent"
             android:thumbTint="@color/text_premium_cream"/>
 
-        <!-- Premium Clean Timestamps -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -126,18 +120,49 @@
                 android:layout_alignParentEnd="true"/>
         </RelativeLayout>
 
-        <!-- Play/Pause Toggle Touch Icon -->
-        <ImageView
-            android:id="@+id/btnPlayPause"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="center_horizontal"
-            android:src="@android:drawable/ic_media_play"
-            app:tint="@color/solar_accent"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:focusable="true"
-            android:contentDescription="Play Pause Toggle"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:id="@+id/btnPrevious"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="32dp"
+                android:src="@drawable/ic_skip_previous"
+                app:tint="@color/text_premium_cream"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Previous Song" />
+
+            <ImageView
+                android:id="@+id/btnPlayPause"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@android:drawable/ic_media_play"
+                app:tint="@color/solar_accent"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Play Pause Toggle"/>
+
+            <ImageView
+                android:id="@+id/btnNext"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="32dp"
+                android:src="@drawable/ic_skip_next"
+                app:tint="@color/text_premium_cream"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Next Song" />
+
+        </LinearLayout>
     </LinearLayout>
 
 </RelativeLayout>

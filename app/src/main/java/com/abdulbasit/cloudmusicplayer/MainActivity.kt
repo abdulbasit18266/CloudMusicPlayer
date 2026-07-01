@@ -47,6 +47,9 @@ class MainActivity : AppCompatActivity() {
         Song("3", "Kesariya.mp3", "")
     )
 
+    // Phase 11: Tracking active playlist globally
+    private var currentSongsList: List<Song> = dummySongsList
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -108,15 +111,31 @@ class MainActivity : AppCompatActivity() {
         popup.show()
     }
 
-    private fun playSong(song: Song) {
-        if (song.url.isEmpty()) {
+    // Phase 11: Enhanced playSong that wraps the entire list architecture
+    private fun playSong(selectedSong: Song) {
+        if (selectedSong.url.isEmpty()) {
             Toast.makeText(this, "No stream link available for backup items", Toast.LENGTH_SHORT).show()
             return
         }
 
+        // 1. Pure titles aur URLs ki string list alag kar rahe hain intent compatible banane ke liye
+        val titlesList = ArrayList<String>()
+        val urlsList = ArrayList<String>()
+        var targetPosition = 0
+
+        currentSongsList.forEachIndexed { index, song ->
+            titlesList.add(song.title)
+            urlsList.add(song.url)
+            if (song.id == selectedSong.id) {
+                targetPosition = index // Klik kiye huye gaane ka exact index position map kar rahe hain
+            }
+        }
+
+        // 2. Intent ke sath lists aur position dono forward kar rahe hain
         val intent = Intent(this, PlayerActivity::class.java).apply {
-            putExtra("SONG_TITLE", song.title)
-            putExtra("SONG_URL", song.url)
+            putStringArrayListExtra("SONG_TITLES_LIST", titlesList)
+            putStringArrayListExtra("SONG_URLS_LIST", urlsList)
+            putExtra("SONG_POSITION", targetPosition)
         }
         startActivity(intent)
     }
@@ -181,6 +200,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadSongsInAdapter(songs: List<Song>) {
+        // Phase 11: Updating the global tracker
+        currentSongsList = songs
         val adapter = SongAdapter(songs) { song -> playSong(song) }
         rvSongs.adapter = adapter
     }

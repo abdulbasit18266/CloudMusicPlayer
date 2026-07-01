@@ -25,8 +25,17 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var tvTotalDuration: TextView
     private lateinit var btnPlayPause: ImageView
 
+    // Phase 11: Previous and Next Buttons
+    private lateinit var btnPrevious: ImageView
+    private lateinit var btnNext: ImageView
+
     private var exoPlayer: ExoPlayer? = null
     private var isPlayerReady = false
+
+    // Phase 11: Playlist Handling Variables
+    private var songTitlesList: ArrayList<String>? = null
+    private var songUrlsList: ArrayList<String>? = null
+    private var currentSongIndex: Int = 0
 
     // Handler jo seekbar aur timer text ko har second background mein chalata rahega
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -54,18 +63,26 @@ class PlayerActivity : AppCompatActivity() {
         tvTotalDuration = findViewById(R.id.tvTotalDuration)
         btnPlayPause = findViewById(R.id.btnPlayPause)
 
-        // Intent se song data nikalna
-        val songTitle = intent.getStringExtra("SONG_TITLE") ?: "Unknown Track"
-        val songUrl = intent.getStringExtra("SONG_URL") ?: ""
+        // Phase 11: Binding new views
+        btnPrevious = findViewById(R.id.btnPrevious)
+        btnNext = findViewById(R.id.btnNext)
 
-        tvPlayerSongTitle.text = songTitle
+        // Phase 11: Intent se Playlist aur Position nikalna
+        songTitlesList = intent.getStringArrayListExtra("SONG_TITLES_LIST")
+        songUrlsList = intent.getStringArrayListExtra("SONG_URLS_LIST")
+        currentSongIndex = intent.getIntExtra("SONG_POSITION", 0)
 
-        // ExoPlayer ko start aur song feed karna
-        if (songUrl.isNotEmpty()) {
-            startPlayback(songUrl)
-        } else {
-            Toast.makeText(this, "Invalid streaming URL", Toast.LENGTH_SHORT).show()
+        // Back-compatibility fallback: Agar purane tarike se single intent aaya ho toh
+        if (songTitlesList == null || songUrlsList == null) {
+            val singleTitle = intent.getStringExtra("SONG_TITLE") ?: "Unknown Track"
+            val singleUrl = intent.getStringExtra("SONG_URL") ?: ""
+            songTitlesList = arrayListOf(singleTitle)
+            songUrlsList = arrayListOf(singleUrl)
+            currentSongIndex = 0
         }
+
+        // Initial track play karo
+        playCurrentTrack()
 
         // Back action button
         btnBack.setOnClickListener {
@@ -77,12 +94,66 @@ class PlayerActivity : AppCompatActivity() {
             togglePlayPause()
         }
 
+        // Phase 11: Previous Button Click Listener
+        btnPrevious.setOnClickListener {
+            playPreviousSong()
+        }
+
+        // Phase 11: Next Button Click Listener
+        btnNext.setOnClickListener {
+            playNextSong()
+        }
+
         // User seekbar drag listener
         setupSeekBarChangeListener()
     }
 
+    // Phase 11: Gaana load aur play karne ka central function
+    private fun playCurrentTrack() {
+        if (songUrlsList.isNullOrEmpty() || songTitlesList.isNullOrEmpty()) {
+            Toast.makeText(this, "No playlist available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val songTitle = songTitlesList!![currentSongIndex]
+        val songUrl = songUrlsList!![currentSongIndex]
+
+        tvPlayerSongTitle.text = songTitle
+
+        if (songUrl.isNotEmpty()) {
+            startPlayback(songUrl)
+        } else {
+            Toast.makeText(this, "Invalid streaming URL", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Phase 11: Next Song Logic
+    private fun playNextSong() {
+        songUrlsList?.let {
+            if (currentSongIndex < it.size - 1) {
+                currentSongIndex++ // Agle index par jao
+                playCurrentTrack()
+            } else {
+                Toast.makeText(this, "Last Song of the Playlist", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Phase 11: Previous Song Logic
+    private fun playPreviousSong() {
+        if (currentSongIndex > 0) {
+            currentSongIndex-- // Pichle index par jao
+            playCurrentTrack()
+        } else {
+            Toast.makeText(this, "First Song of the Playlist", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun startPlayback(url: String) {
         try {
+            // Agar pehle se koi gaana chal raha hai, toh use pehle rok ke release karo
+            exoPlayer?.release()
+
             exoPlayer = ExoPlayer.Builder(this).build()
             val mediaItem = MediaItem.fromUri(url)
 
@@ -103,17 +174,17 @@ class PlayerActivity : AppCompatActivity() {
                             // Seekbar runnable start karo
                             mainHandler.post(updateSeekBarRunnable)
 
-                            // Fixed: Added '.R.' here
                             btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                        } else if (playbackState == Player.STATE_ENDED) {
+                            // Phase 11: Gaana khatam hone par automatic next song chalana
+                            playNextSong()
                         }
                     }
 
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         if (isPlaying) {
-                            // Fixed: Added '.R.' here
-                            btnPlayPause.setImageResource(android.R. drawable.ic_media_pause)
+                            btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
                         } else {
-                            // Fixed: Added '.R.' here
                             btnPlayPause.setImageResource(android.R.drawable.ic_media_play)
                         }
                     }
@@ -129,11 +200,9 @@ class PlayerActivity : AppCompatActivity() {
         exoPlayer?.let {
             if (it.isPlaying) {
                 it.pause()
-                // Fixed: Added '.R.' here
                 btnPlayPause.setImageResource(android.R.drawable.ic_media_play)
             } else {
                 it.play()
-                // Fixed: Added '.R.' here
                 btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
             }
         }
