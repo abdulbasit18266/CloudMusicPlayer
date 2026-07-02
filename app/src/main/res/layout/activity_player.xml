@@ -18,7 +18,7 @@
             android:id="@+id/btnBack"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@android:drawable/ic_media_previous"
+            android:src="@android:drawable/ic_menu_revert"
             android:contentDescription="Back"
             app:tint="@color/text_premium_cream"
             android:layout_alignParentStart="true"
